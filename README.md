@@ -6,6 +6,12 @@
 * **Autor:** Pedro Caso
 * **Tema:** Sistemas Multiagente (MAS) bajo Arquitecturas Centralizada, Jerarquica y Descentralizada
 
+* Video Demostrativo
+
+El video explicativo con la demostracion de funcionamiento de las tres arquitecturas, validacion de consultas de FAQs, auditoria meteorologica con Open-Meteo y rechazo/confirmacion de citas se encuentra disponible en el siguiente enlace:
+
+* **Enlace al Video Demostrativo:** https://youtu.be/Cb9t7p0z5Nw
+
 ---
 
 ## 1. Descripcion General
@@ -182,8 +188,4 @@ python agent_decentralized.py
 
 ---
 
-## 8. Video Demostrativo
 
-El video explicativo con la demostracion de funcionamiento de las tres arquitecturas, validacion de consultas de FAQs, auditoria meteorologica con Open-Meteo y rechazo/confirmacion de citas se encuentra disponible en el siguiente enlace:
-
-* **Enlace al Video Demostrativo:** https://youtu.be/Cb9t7p0z5Nw
