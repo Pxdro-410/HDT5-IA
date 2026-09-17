@@ -24,19 +24,34 @@ def get_connection():
         user=DB_USER,
         password=DB_PASSWORD,
     )
-    register_vector(conn)
+    try:
+        register_vector(conn)
+    except Exception:
+        pass
     return conn
 
 
 def init_db() -> None:
     """Crea la extensión pgvector y la tabla faqs con su índice vectorial si no existen."""
-    conn = get_connection()
+    # Conexión pura para crear la extensión antes de registrar el tipo vector
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD,
+    )
     try:
         with conn.cursor() as cur:
-            # Habilitar la extensión vector
+            # 1. Habilitar la extensión vector
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            conn.commit()
 
-            # Crear la tabla de FAQs
+        # 2. Registrar el tipo vector ahora que la extensión existe
+        register_vector(conn)
+
+        with conn.cursor() as cur:
+            # 3. Crear la tabla de FAQs
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS faqs (
@@ -51,7 +66,7 @@ def init_db() -> None:
                 """
             )
 
-            # Crear índice HNSW para búsqueda por similitud de coseno
+            # 4. Crear índice HNSW para búsqueda por similitud de coseno
             cur.execute(
                 """
                 CREATE INDEX IF NOT EXISTS faqs_embedding_hnsw_idx 
@@ -120,3 +135,37 @@ def search_faqs(query_embedding: List[float], limit: int = 3) -> List[Dict[str, 
             return [dict(row) for row in results]
     finally:
         conn.close()
+
+
+_EMBED_MODEL = None
+
+
+def search_faqs_by_text(query: str, limit: int = 3) -> Dict[str, Any]:
+    """
+    Busca preguntas frecuentes directamente por texto en PostgreSQL con pgvector,
+    cargando el modelo de embeddings all-MiniLM-L6-v2 de forma lazy.
+    """
+    global _EMBED_MODEL
+    if not query or not query.strip():
+        return {"exito": False, "mensaje": "La consulta no puede estar vacía."}
+
+    if _EMBED_MODEL is None:
+        from sentence_transformers import SentenceTransformer
+        _EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+
+    try:
+        query_vector = _EMBED_MODEL.encode(query.strip(), normalize_embeddings=True).tolist()
+        results = search_faqs(query_vector, limit=limit)
+        if not results:
+            return {"exito": True, "encontrados": 0, "faqs": [], "mensaje": "Sin resultados en FAQs."}
+
+        docs = [{
+            "pregunta": r["question"],
+            "respuesta": r["answer"],
+            "categoria": r["category"],
+            "similitud": round(float(r["similarity"]), 4)
+        } for r in results]
+        return {"exito": True, "encontrados": len(docs), "faqs": docs}
+    except Exception as e:
+        return {"exito": False, "error": str(e), "mensaje": f"Error al consultar la base de datos: {e}"}
+
